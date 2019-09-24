@@ -212,7 +212,8 @@ cmd = env_cmd + ';' + fusion_cmd + ' ' + "'" + str(tag_info) + "'"
 print("[ INFO ] run in shell cmd: ", cmd)
 res = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
 if res.wait() == 0:
-    print("[ INFO ] This is command stdout -------------[start]-------------------")
-    for stdinfo in res.stdout.readlines():
-        print(stdinfo)
-    print("[ INFO ] This is command stdout --------------[END]--------------------")
+    print(res.stdout.readlines())
+    # print("[ INFO ] This is command stdout -------------[start]-------------------")
+    # for stdinfo in res.stdout.readlines():
+    #     print(stdinfo)
+    # print("[ INFO ] This is command stdout --------------[END]--------------------")

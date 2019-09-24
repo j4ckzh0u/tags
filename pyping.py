@@ -47,13 +47,13 @@ def raw_socket(dst_addr,imcp_packet):
     '''
        连接套接字,并将数据发送到套接字
     '''
-    #实例化一个socket对象，ipv4，原套接字，分配协议端口
+    '''实例化一个socket对象，ipv4，原套接字，分配协议端口'''
     rawsocket = socket.socket(socket.AF_INET, socket.SOCK_RAW, socket.getprotobyname("icmp"))
-    #记录当前请求时间
+    '''记录当前请求时间'''
     send_request_ping_time = time.time()
-    #发送数据到网络
+    '''发送数据到网络'''
     rawsocket.sendto(imcp_packet, (dst_addr, 80))
-    #返回数据
+    '''返回数据'''
     return send_request_ping_time, rawsocket, dst_addr
 
 
@@ -140,7 +140,7 @@ def ping(host):
         print("[ ERR ] %s, Please check it !!! " % e )
         return False
 
-    for i in range(0,4):
+    for i in range(0,2):
         send=i+1
         '''请求ping数据包的二进制转换'''
         icmp_packet = request_ping(data_type, data_code, data_checksum, data_ID, data_Sequence + i, payload_body)
@@ -165,7 +165,7 @@ def ping(host):
             print("time out")
             return False
 
-        if send == 4:
+        if send == 2:
             # print("{0}的Ping统计信息:".format(dst_addr))
             # print("\t数据包：已发送={0},接收={1}，丢失={2}（{3}%丢失），\n往返行程的估计时间（以毫秒为单位）：\n\t最短={4}ms，最长={5}ms，平均={6}ms".format(
             #     i + 1, accept, i + 1 - accept, (i + 1 - accept) / (i + 1) * 100, shorttime, longtime, sumtime/send))
