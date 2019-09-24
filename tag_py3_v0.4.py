@@ -38,15 +38,7 @@ import socket
 
 ###find all tag file in /root and /home on linux; in c:\tags and d:\tags on windows
 ###the tag file is *.tag
-fusionagent_path = '/opt/FusionInventory-Agent/'
-fusionagentcfg = fusionagent_path + 'etc/fusioninventory/agent.cfg'
-# get cmdb server url
-with open(fusionagentcfg, 'r') as cfg:
-    for line in cfg.readlines():
-        if line.strip().startswith('server'):
-            cmdbserver = parse.urlparse(line.split('=')[1].strip().split('\n')[0]).netloc
-            serverip = cmdbserver.split(':')[0]
-            print("[+] CMDBserver IP: ", cmdbserver)
+
 
 # get host ip
 def get_host_ip():
@@ -64,6 +56,16 @@ print("[+] OSType is: ", ostype)
 unix = ['linux', 'linux2', 'hpux', 'aix']
 if ostype in unix:
     path = ['/root', '/home']
+
+    fusionagent_path = '/opt/FusionInventory-Agent/'
+    fusionagentcfg = fusionagent_path + 'etc/fusioninventory/agent.cfg'
+    # get cmdb server url
+    with open(fusionagentcfg, 'r') as cfg:
+        for line in cfg.readlines():
+            if line.strip().startswith('server'):
+                cmdbserver = parse.urlparse(line.split('=')[1].strip().split('\n')[0]).netloc
+                serverip = cmdbserver.split(':')[0]
+                print("[+] CMDBserver IP: ", cmdbserver)
 
     pingcmd = 'ping -c 3 ' + serverip
 
