@@ -44,14 +44,17 @@ import socket
 if len(sys.argv) > 1:
     if sys.argv[1] == 'manual':
         module = 'manual'
+    elif sys.argv[1] == 'netscan':
+        module = 'netscan'
 else:
     module = 'auto'
+print('[ INFO ] Module is: {0}'.format(module))
 
 # get host ip
 def get_host_ip():
     try:
         sc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        sc.connect(('1.2.3.4', 8008))
+        sc.connect(('10.0.0.1', 8008))
 
     finally:
         ip = sc.getsockname()[0]
@@ -125,7 +128,7 @@ def post_status(cmdb_domain, pingcmd, module):
         vatsping = 1
     else:
         vatsping = 0
-        print("[ ERR ] Can Not Ping Server {0} From Agent {1} !!! ".format(cmdb_domain.split(':')[0], hostip))
+        print("[ !ERR ] Can Not Ping Server {0} From Agent {1} !!! ".format(cmdb_domain.split(':')[0], hostip))
         return False
 
     if vatsping:
@@ -195,6 +198,8 @@ def doinventory(cmd):
         #     print(stdinfo)
         # print("[ INFO ] This is command stdout --------------[END]--------------------")
 
+def netscan():
+    pass
 
 ostype = sys.platform
 print("[ INFO ] OSType is: ", ostype)
@@ -223,7 +228,7 @@ if ostype in unix:
 
     pingcmd = 'ping -c 3 ' + cmdb_ip
     result = post_status(cmdb_domain, pingcmd, module)
-    if result:
+    if result and module in ['manual', 'auto']:
         perlenv = fusionagent_path + '.perl_env'
         fusioncmd = fusionagent_path + '.fusion_cmd'
 
@@ -264,10 +269,10 @@ else:
         sys.exit(8002)
 
     finally:
-        pass
-    pingcmd = 'ping -n 3 {0}'.format(cmdb_ip)
+        winreg.CloseKey(reg_keys)
+    pingcmd = 'ping -n 3 -w 8 {0}'.format(cmdb_ip)
     result = post_status(cmdb_domain, pingcmd, module)
-    if result:
+    if result and module in ['manual', 'auto']:
         tag_info = gettags(path, ostype)
         print("[ INFO ] tag is: {0}".format(tag_info))
         '''
