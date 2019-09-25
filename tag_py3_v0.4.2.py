@@ -61,8 +61,12 @@ def get_host_ip():
 
 def urlparserhostip(url):
     domain = parse.urlparse(url.strip().split('\n')[0]).netloc
-    ip = domain.split(':')[0]
-    port = domain.split(':')[1]
+    if ':' in domain:
+        ip = domain.split(':')[0]
+        port = domain.split(':')[1]
+    else:
+        ip = domain
+        port = 80
     return domain, ip, port
 
 def gettags(paths, ostype):
@@ -252,6 +256,7 @@ else:
         reg_conn = winreg.ConnectRegistry(None, winreg.HKEY_LOCAL_MACHINE)
         reg_keys = winreg.OpenKey(reg_conn, r"SOFTWARE\FusionInventory-Agent")
         cmdb_url, t = winreg.QueryValueEx(reg_keys, "server")
+        winreg.CloseKey(reg_keys)
         cmdb_domain, cmdb_ip, cmdb_port = urlparserhostip(cmdb_url)
         print("[ INFO ] CMDBserver IP: {0} ".format(cmdb_ip))
     except Exception as e:
@@ -265,7 +270,15 @@ else:
     if result:
         tag_info = gettags(path, ostype)
         print("[ INFO ] tag is: {0}".format(tag_info))
-        cmd = "'c:\\Program Files\\FusionInventory-Agent\\fusioninventory-agent.bat' -t '{0}'".format(str(tag_info))
+        '''
+        # modeify the win registry value ,the key name is 'HKEY_LOCAL_MACHINE\SOFTWARE\FusionInventory-Agent\\tag'
+        '''
+        reg_conn = winreg.ConnectRegistry(None, winreg.HKEY_LOCAL_MACHINE)
+        reg_keys = winreg.OpenKey(reg_conn, r"SOFTWARE\FusionInventory-Agent", 0, winreg.KEY_SET_VALUE)
+        winreg.SetValueEx(reg_keys, "tag", 0, winreg.REG_SZ, tag_info)
+        winreg.CloseKey(reg_keys)
+
+        cmd = "'c:\\Program Files\\FusionInventory-Agent\\fusioninventory-agent.bat' "
         result = doinventory(cmd)
         if result:
             print("[ INFO ] FusionInventory run success! ")
