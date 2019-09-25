@@ -36,6 +36,7 @@ from urllib import parse
 import requests
 import socket
 
+
 ###find all tag file in /root and /home on linux; in c:\tags and d:\tags on windows
 ###the tag file is *.tag
 
@@ -54,6 +55,12 @@ def get_host_ip():
 ostype = sys.platform
 print("[+] OSType is: ", ostype)
 unix = ['linux', 'linux2', 'hpux', 'aix']
+
+def urlparserhostip(url):
+    domain = parse.urlparse(url.strip().split('\n')[0]).netloc
+    ip = domain.split(':')[0]
+    port = domain.split(':')[1]
+    return domain, ip, port
 if ostype in unix:
     path = ['/root', '/home']
 
@@ -63,11 +70,12 @@ if ostype in unix:
     with open(fusionagentcfg, 'r') as cfg:
         for line in cfg.readlines():
             if line.strip().startswith('server'):
-                cmdbserver = parse.urlparse(line.split('=')[1].strip().split('\n')[0]).netloc
-                serverip = cmdbserver.split(':')[0]
-                print("[+] CMDBserver IP: ", cmdbserver)
+                # cmdbserver = parse.urlparse(line.split('=')[1].strip().split('\n')[0]).netloc
+                # serverip = cmdbserver.split(':')[0]
+                cmdb_domain, cmdb_ip, cmdb_port = urlparserhostip(line.split('=')[1])
+                print("[+] CMDBserver IP: ", cmdb_domain)
 
-    pingcmd = 'ping -c 3 ' + serverip
+    pingcmd = 'ping -c 3 ' + cmdb_ip
 
     fusionagent_start_shell = fusionagent_path + 'start.sh'
     perlenv = fusionagent_path + '.perl_env'
@@ -80,19 +88,26 @@ if ostype in unix:
                         penv.write(line)
 
     if not os.path.exists(fusioncmd):
-        with open(fusionagent_start_shell,'r') as f:
+        with open(fusionagent_start_shell, 'r') as f:
             for line in f.readlines():
                 if line.strip().startswith('perl /opt/FusionInventory-Agent'):
                     with open(fusioncmd, 'w') as fcmd:
                         if '-d' in line:
                             line = line.replace('-d', ' -t')
+                            sedCmd = "sed -i 's#-d##g' {0}".format(fusionagent_start_shell)
+                            subprocess.Popen(sedCmd)
                         else:
                             line = line + ' -t'
                         fcmd.write(line)
 
 else:
-    path = ['c:\\tags','d:\\tags']
-    pingcmd = 'ping -n 3 ' + serverip
+    path = ['c:\\tags', 'd:\\tags']
+    import winreg
+    reg_conn = winreg.ConnectRegistry(None, winreg.HKEY_LOCAL_MACHINE)
+    reg_keys = winreg.OpenKey(reg_conn, r"SOFTWARE\FusionInventory-Agent")
+    cmdb_url, t = winreg.QueryValueEx(reg_keys, "server")
+    cmdb_domain, cmdb_ip, cmdb_port = urlparserhostip(line.split('=')[1])
+    pingcmd = 'ping -n 3 ' + cmdb_ip
 paths = []
 for fpath in path:
     p = Path(fpath)

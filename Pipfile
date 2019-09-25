@@ -8,6 +8,7 @@ verify_ssl = true
 [packages]
 pathlib2 = "*"
 requests = "*"
+regpath = "*"
 
 [requires]
 python_version = "3.7"

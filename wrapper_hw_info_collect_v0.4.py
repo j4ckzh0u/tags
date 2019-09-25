@@ -13,7 +13,7 @@
 import cryptolib
 import sys
 
-#data = raw_input()
+# data = raw_input()
 data = sys.stdin.readline()
 # print "data1: " + data
 
@@ -26,7 +26,7 @@ try:
     command = data.split('|')[3]
     updateurl = data.split('|')[4]
 except:
-    print '10001:data split is error'
+    print('10001:data split is error')
     sys.exit()
 
 # print 'APIServer: ', apiserver
@@ -45,9 +45,9 @@ if command == 'trigger':
         res['host'] = host
         res['data'] = postdata
         rdata = json.dumps(res)
-        print rdata
+        print(rdata)
     except:
-        print "10010:url error"
+        print("10010:url error")
         sys.exit()
     sys.exit(0)
 elif command == 'update':
@@ -58,7 +58,7 @@ elif command == 'update':
             data = d.read()
             with open("saltlib.py", 'wb') as f:
                 f.write(data)
-        print 'script update success'
+        print('script update success')
     except:
-        print '10011:url error'
+        print('10011:url error')
         sys.exit()
