@@ -135,9 +135,10 @@ def post_status(cmdb_domain, pingcmd, module):
         try:
             req = requests.get(url=statusapi, headers={"User-Agent": "python-Fusioninventory"}, timeout=5)
             ctx = req.json()
+            print("[ DEBUG ] ctx is {0}".format(ctx))
             statuscode = req.status_code
         except Exception as e:
-            print("[ ERR ] {0}, POST status to {1} Failed, Please check server address !!!".format(e, statusapi))
+            print("[ ERR ] {0}, GET status From {1} Failed, Please check server address !!!".format(e, statusapi))
             return False
         # finally:
         #     req.close()
@@ -174,7 +175,7 @@ def post_status(cmdb_domain, pingcmd, module):
             postreq = requests.post(url=statusapi, data=json.dumps(data),
                                     headers={"User-Agent": "python-Fusioninventory"}, timeout=5)
             if postreq.status_code == 200:
-                print("[ INFO ] status data post successfull! ")
+                print("[ INFO ] POST status data successfull! ")
                 return True
             else:
                 print("[ ERR ] the URL: {0} is cannot connect !!! ".format(statusapi))
