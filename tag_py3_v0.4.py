@@ -106,7 +106,7 @@ else:
     reg_conn = winreg.ConnectRegistry(None, winreg.HKEY_LOCAL_MACHINE)
     reg_keys = winreg.OpenKey(reg_conn, r"SOFTWARE\FusionInventory-Agent")
     cmdb_url, t = winreg.QueryValueEx(reg_keys, "server")
-    cmdb_domain, cmdb_ip, cmdb_port = urlparserhostip(line.split('=')[1])
+    cmdb_domain, cmdb_ip, cmdb_port = urlparserhostip(cmdb_url)
     pingcmd = 'ping -n 3 ' + cmdb_ip
 paths = []
 for fpath in path:
@@ -140,7 +140,7 @@ print("[+] Json Dump data is :", json.dumps(labels))
 tag_info = json.dumps(labels)
 
 hostip = get_host_ip()
-statusapi = 'http://' + cmdbserver + '/ft/status.php'
+statusapi = 'http://' + cmdb_domain + '/ft/status.php'
 print("[ INFO ] The Status API URL is: ", statusapi)
 pingres = subprocess.Popen(pingcmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 if pingres.wait() == 0:
