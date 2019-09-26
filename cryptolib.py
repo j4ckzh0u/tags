@@ -1,4 +1,4 @@
-#! /usr/bin/env python2.7
+#! /usr/bin/env python3
 # -*- coding:utf-8 -*-
 # auth: zhoujunke
 # date: 20190212
@@ -13,35 +13,35 @@ import base64 as b64
 import hashlib
 
 ### encrypt: first xor with key ,2nd base64
-def xor_encrypt(data,key):
-    ldata=len(data)
-    lkey=len(key)
-    secret=[]
-    num=0
+def xor_encrypt(data, key):
+    # ldata=len(data)
+    lkey = len(key)
+    secret = []
+    num = 0
     for each in data:
-        if num>=lkey:
-            num=num%lkey
-        secret.append( chr( ord(each)^ord(key[num]) ) )
-        num+=1
-    return b64.b64encode( "".join( secret ).encode() ).decode()
+        if num >= lkey:
+            num = num % lkey
+        secret.append(chr(ord(each) ^ ord(key[num])))
+        num += 1
+    return b64.b64encode("".join(secret).encode()).decode()
 
 ### decrypt: first decode base64 ,2nd xor with key
-def xor_decrypt(secret,key):
-    data = b64.b64decode( secret.encode() ).decode()
-    ldata=len(data)
-    lkey=len(key)
-    secret=[]
+def xor_decrypt(secret, key):
+    data = b64.b64decode(secret.encode()).decode()
+    # ldata = len(data)
+    lkey = len(key)
+    secret = []
     num=0
     for each in data:
-        if num>=lkey:
-            num=num%lkey
-        secret.append( chr( ord(each)^ord(key[num]) ) )
-        num+=1
-    return "".join( secret )
+        if num >= lkey:
+            num = num % lkey
+        secret.append(chr(ord(each) ^ ord(key[num])))
+        num += 1
+    return "".join(secret)
 ### get data md5 hexdigest
 def md5(data):
     m = hashlib.md5()
-    m.update(data)
+    m.update(data.encode("utf-8"))
     md5digest = m.hexdigest()
     return md5digest
 
@@ -60,9 +60,10 @@ def decryptdata(data):
     if md5(data) == md5digest:
         return data
     else:
-        print '10020:decryptdata is error'
+        print('10020:decryptdata is error')
         return ''
 
-
+if __name__ == '__main__':
+    print(encryptdata('gettime|aaa'))
 
 

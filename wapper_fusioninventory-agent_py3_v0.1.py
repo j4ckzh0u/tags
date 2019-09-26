@@ -13,40 +13,47 @@
 import cryptolib
 import time
 import subprocess
-import urllib2
+import requests
 import sys
 
 #data = raw_input()
-data = sys.stdin.readline()
-print("data1: " + data)
+def cprint(data):
+    cdata = cryptolib.encryptdata(data)
+    print(cdata)
 
+nowtime = time.time()
+data = sys.stdin.readline()
 try:
     data = cryptolib.decryptdata(data.split('\n')[0])
-    print("data2: " + data)
+    print("[ DEBUG ] get DATA: " + data)
     datalist = data.split('|')
     command = datalist[0]
     updateurl = datalist[1]
     filepath = datalist[2]
-    time = datalist[3]
+    ctime = datalist[3]
+    print(command)
 except:
     print('data is error!!!')
     sys.exit()
 
+if command == 'gettime':
+    cprint({'nowtime': nowtime})
 
-if command == 'trigger':
-    res = subprocess.Popen("python /root/py_code/salt_get_hwinfo_not_to_db.py", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if res.wait() == 0:
-        print(res.stdout.read().split('\n')[0])
-    else:
-        print('command exec fail!!!')
-elif command == 'update':
-    d = urllib2.urlopen(updateurl)
-    try:
-        if d.code == 200:
-            data = d.read()
-            with open(filepath, 'wb') as f:
-                f.write(data)
-        print('script update success')
-    except:
-        print('url error')
-        sys.exit()
+elif ctime == nowtime:
+    if command == 'inventory':
+        res = subprocess.Popen("python /root/py_code/salt_get_hwinfo_not_to_db.py", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        if res.wait() == 0:
+            print(res.stdout.read().split('\n')[0])
+        else:
+            print('command exec fail!!!')
+    elif command == 'update':
+        d = requests.get(updateurl)
+        try:
+            if d.code == 200:
+                data = d.read()
+                with open(filepath, 'wb') as f:
+                    f.write(data)
+            print('script update success')
+        except:
+            print('url error')
+            sys.exit()
