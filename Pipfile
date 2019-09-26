@@ -9,6 +9,8 @@ verify_ssl = true
 pathlib2 = "*"
 requests = "*"
 regpath = "*"
+gevent = "*"
+ipy = "*"
 
 [requires]
 python_version = "3.7"

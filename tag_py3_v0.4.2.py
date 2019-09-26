@@ -25,7 +25,10 @@
 # 联系电话=130xxxxxxx
 # 邮箱=aaaa@cccc.com
 #################################
-
+# from gevent import monkey; monkey.patch_all()
+import gevent
+import gevent.monkey
+gevent.monkey.patch_all()
 import configparser
 import os
 import sys
@@ -35,20 +38,13 @@ import subprocess
 from urllib import parse
 import requests
 import socket
+import gevent
+from IPy import IP
+
 
 
 ###find all tag file in /root and /home on linux; in c:\tags and d:\tags on windows
 ###the tag file is *.tag
-
-
-if len(sys.argv) > 1:
-    if sys.argv[1] == 'manual':
-        module = 'manual'
-    elif sys.argv[1] == 'netscan':
-        module = 'netscan'
-else:
-    module = 'auto'
-print('[ INFO ] Module is: {0}'.format(module))
 
 # get host ip
 def get_host_ip():
@@ -62,6 +58,24 @@ def get_host_ip():
         print("[ INFO ] local IP: ", ip)
     return ip
 
+
+if len(sys.argv) > 1:
+    if sys.argv[1] == 'manual':
+        module = 'manual'
+    elif sys.argv[1] == 'status':
+        module = 'status'
+    elif sys.argv[1] == 'netscan':
+        module = 'netscan'
+        if len(sys.argv) == 3:
+            scanip = sys.argv[2]
+        else:
+            scanip = get_host_ip()
+        print("scan ip: {0}".format(scanip))
+else:
+    module = 'auto'
+print('[ INFO ] Module is: {0}'.format(module))
+
+# parser domain like '192.168.1.1:10080', after parsered ip=192.168.1.1, port=10080
 def urlparserhostip(url):
     domain = parse.urlparse(url.strip().split('\n')[0]).netloc
     if ':' in domain:
@@ -72,7 +86,8 @@ def urlparserhostip(url):
         port = 80
     return domain, ip, port
 
-def gettags(paths, ostype):
+# get tags on windows  or  linux
+def gettags(paths):
     for fpath in paths:
         p = Path(fpath)
         for filepath in list(p.glob('**/*.tag')):
@@ -83,10 +98,16 @@ def gettags(paths, ostype):
     labels = []
     for tagfile in paths:
         config = configparser.ConfigParser()
-        if ostype == 'win32':
+        try:
             config.read(tagfile, encoding='gbk')
-        else:
+            # print('gbk read')
+        except:
             config.read(tagfile, encoding='utf-8')
+            # print('utf8 read')
+        # if ostype == 'win32':
+        #     config.read(tagfile, encoding='utf-8')
+        # else:
+        #     config.read(tagfile, encoding='utf-8')
         for i in config.sections():
             label = {}
             print("[ INFO ] Label:", i)
@@ -104,6 +125,9 @@ def gettags(paths, ostype):
     print("[ INFO ] Json Dump data is :", json.dumps(labels))
     return json.dumps(labels)
 
+'''
+post status data
+'''
 
 def post_status(cmdb_domain, pingcmd, module):
     '''
@@ -190,7 +214,8 @@ def doinventory(cmd):
     print("[ INFO ] run in shell cmd: ", cmd)
     res = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
     if res.wait() == 0:
-        print(res.stdout.readlines())
+        if res.stdout.readlines():
+            print(res.stdout.readlines())
         return True
     else:
         return False
@@ -199,8 +224,59 @@ def doinventory(cmd):
         #     print(stdinfo)
         # print("[ INFO ] This is command stdout --------------[END]--------------------")
 
-def netscan():
-    pass
+'''ping_scan'''
+def pingscan(ip):
+    if ostype == 'win32':
+        pingcmd = 'ping -n 2 {0}'.format(ip)
+    else:
+        pingcmd = 'ping -c 2 {0}'.format(ip)
+    try:
+        fnull = open(os.devnull, 'w')
+        pingres = subprocess.Popen(pingcmd, shell=True, stdout=fnull, stderr=fnull)
+        if pingres.wait(timeout=2) == 0:
+            print('[ INFO ] Host {0} is UP .'.format(ip))
+            return ip
+        else:
+            # print('[ ERR ] {0} is Down .'.format(ip))
+            return False
+    except Exception as e:
+        return False
+    finally:
+        fnull.close()
+
+
+def netscan(netip):
+    print("*" * 10 + "NetScan Start" + "*" * 10)
+    net = IP(netip).make_net('255.255.255.0')
+    g_l = [gevent.spawn(pingscan, ip) for ip in net]
+    gevent.joinall(g_l)
+    uplist = []
+    for i, g in enumerate(g_l):
+        if g.value:
+            # print('i: {0}'.format(i))
+            # print('g: {0}'.format(g.value))
+            # print(type(g.value))
+            uplist.append(g.value.strNormal(0))
+    data = {}
+    data["action"] = "netscan"
+    data["lenth"] = len(uplist)
+    data["value"] = uplist
+    print("[ INFO ] UP host data: {0}".format(data))
+    print("*" * 10 + "NetScan Finish" + "*" * 10)
+    return data
+
+'''do post or get '''
+def do_post(url, data, headers={"User-Agent": "python-Fusioninventory"}, timeout=5):
+    try:
+        pst = requests.post(url=url, data=json.dumps(data), headers=headers, timeout=timeout)
+        pstatus = pst.status_code
+    except Exception as e:
+        print("[ ERR ] {0}, connect to {1} Failed, please check it !!!".format(e, url))
+        return False
+    if pstatus == 200:
+        return True
+    else:
+        return False
 
 ostype = sys.platform
 print("[ INFO ] OSType is: ", ostype)
@@ -229,31 +305,42 @@ if ostype in unix:
 
     pingcmd = 'ping -c 3 ' + cmdb_ip
     result = post_status(cmdb_domain, pingcmd, module)
-    if result and module in ['manual', 'auto']:
-        perlenv = fusionagent_path + '.perl_env'
-        fusioncmd = fusionagent_path + '.fusion_cmd'
+    if result:
+        if module == 'status':
+            print("*" * 10 + "status data upload success!" + "*" * 10)
+            pass
+        elif module == 'netscan':
+            scandata = netscan(scanip)
+            psturl = 'http://' + cmdb_domain + '/ft/status.php'
+            pstdata = do_post(url=psturl, data=scandata)
+            if pstdata:
+                print('[ INFO ] post net scan data success !')
+            else:
+                print("[ ERR ] post net scan data Failed !!! ")
 
-        tag_info = gettags(path, ostype)
+        elif module in ['manual', 'auto']:
 
-        with open(fusionagent_start_shell, 'r') as f:
-            for line in f.readlines():
-                line = line.strip().split('\n')[0]
-                if line.startswith('export PERL'):
-                    perlenv = line
-                elif line.startswith('perl /opt/FusionInventory-Agent'):
-                    if line.endswith("-d"):
-                        fusion_cmd = line.split('-d', ' -t')
-                    else:
-                        fusion_cmd = line + ' -t'
+            tag_info = gettags(path)
 
-        print("[ INFO ] set perl env command is :", perlenv)
-        print("[ INFO ] Fusion agent run command is :", fusion_cmd)
-        cmd = perlenv + ';' + fusion_cmd + ' ' + "'" + str(tag_info) + "'"
-        result = doinventory(cmd)
-        if result:
-            print("[ INFO ] FusionInventory run success ! ")
-        else:
-            print("[ ERR ] FusionInventory run Failed !!! ")
+            with open(fusionagent_start_shell, 'r') as f:
+                for line in f.readlines():
+                    line = line.strip().split('\n')[0]
+                    if line.startswith('export PERL'):
+                        perlenv = line
+                    elif line.startswith('perl /opt/FusionInventory-Agent'):
+                        if line.endswith("-d"):
+                            fusion_cmd = line.split('-d', ' -t')
+                        else:
+                            fusion_cmd = line + ' -t'
+
+            # print("[ INFO ] set perl env command is :", perlenv)
+            # print("[ INFO ] Fusion agent run command is :", fusion_cmd)
+            cmd = perlenv + ';' + fusion_cmd + ' ' + "'" + str(tag_info) + "'"
+            result = doinventory(cmd)
+            if result:
+                print("[ INFO ] FusionInventory run success ! ")
+            else:
+                print("[ ERR ] FusionInventory run Failed !!! ")
 
 else:
     path = ['c:\\tags', 'd:\\tags']
@@ -262,19 +349,19 @@ else:
         reg_conn = winreg.ConnectRegistry(None, winreg.HKEY_LOCAL_MACHINE)
         reg_keys = winreg.OpenKey(reg_conn, r"SOFTWARE\FusionInventory-Agent")
         cmdb_url, t = winreg.QueryValueEx(reg_keys, "server")
-        winreg.CloseKey(reg_keys)
         cmdb_domain, cmdb_ip, cmdb_port = urlparserhostip(cmdb_url)
         print("[ INFO ] CMDBserver IP: {0} ".format(cmdb_ip))
+
     except Exception as e:
         print("[ ERR ] {0}, please check Fusioninventory installed !!!".format(e))
         sys.exit(8002)
 
     finally:
         winreg.CloseKey(reg_keys)
-    pingcmd = 'ping -n 3 -w 8 {0}'.format(cmdb_ip)
+    pingcmd = 'ping -n 3 -w 5 {0}'.format(cmdb_ip)
     result = post_status(cmdb_domain, pingcmd, module)
     if result and module in ['manual', 'auto']:
-        tag_info = gettags(path, ostype)
+        tag_info = gettags(path)
         print("[ INFO ] tag is: {0}".format(tag_info))
         '''
         # modeify the win registry value ,the key name is 'HKEY_LOCAL_MACHINE\SOFTWARE\FusionInventory-Agent\\tag'
@@ -284,9 +371,20 @@ else:
         winreg.SetValueEx(reg_keys, "tag", 0, winreg.REG_SZ, tag_info)
         winreg.CloseKey(reg_keys)
 
-        cmd = "'c:\\Program Files\\FusionInventory-Agent\\fusioninventory-agent.bat' "
+        cmd = '"c:\\Program Files\\FusionInventory-Agent\\fusioninventory-agent.bat" '
         result = doinventory(cmd)
         if result:
             print("[ INFO ] FusionInventory run success! ")
         else:
             print("[ ERR ] FusionInventory run Failed !!! ")
+    elif result and module == 'netscan':
+        scandata = netscan(scanip)
+        psturl = 'http://' + cmdb_domain + '/ft/status.php'
+        pstdata = do_post(url=psturl, data=scandata)
+        if pstdata:
+            print('[ INFO ] post net scan data success !')
+        else:
+            print("[ ERR ] post net scan data Failed !!! ")
+    elif result and module == 'status':
+        print('*' * 10 + "status data upload success!" + '*' * 10)
+        pass
