@@ -53,7 +53,7 @@ def get_host_ip():
     finally:
         ip = sc.getsockname()[0]
         sc.close()
-        print("[ INFO ] local IP: ", ip)
+        print("[ INFO ] Local IP: ", ip)
     return ip
 
 
@@ -254,7 +254,8 @@ def netscan(netip):
     data = {}
     data["action"] = "netscan"
     data["lenth"] = len(uplist)
-    data["value"] = uplist
+    data["result"] = uplist
+    data["scanip"] = get_host_ip()
     print("[ INFO ] UP host data: {0}".format(data))
     print("*" * 10 + "NetScan Finish" + "*" * 10)
     return data
