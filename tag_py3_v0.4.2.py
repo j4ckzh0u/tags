@@ -346,10 +346,7 @@ if ostype in unix:
                 print('[ INFO ] post inventory data success !')
             else:
                 print("[ ERR ] post inventory data Failed !!! ")
-            if result:
-                print("[ INFO ] FusionInventory run success ! ")
-            else:
-                print("[ ERR ] FusionInventory run Failed !!! ")
+
 
 else:
     path = ['c:\\tags', 'd:\\tags']
