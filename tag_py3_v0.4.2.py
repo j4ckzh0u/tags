@@ -332,6 +332,21 @@ if ostype in unix:
             cmd = perlenv + ';' + fusion_cmd + ' ' + "'" + str(tag_info) + "'"
             result = doinventory(cmd)
             if result:
+                inventory = 1
+                print("[ INFO ] FusionInventory run success! ")
+            else:
+                inventory = 0
+                print("[ ERR ] FusionInventory run Failed !!! ")
+            data = {}
+            data["action"] = 'runinventory'
+            data["result"] = inventory
+            data["id"] = get_host_ip()
+            pstd = do_post(url=statusapi, data=data)
+            if pstd:
+                print('[ INFO ] post inventory data success !')
+            else:
+                print("[ ERR ] post inventory data Failed !!! ")
+            if result:
                 print("[ INFO ] FusionInventory run success ! ")
             else:
                 print("[ ERR ] FusionInventory run Failed !!! ")
