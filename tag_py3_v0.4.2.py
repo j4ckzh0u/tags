@@ -41,8 +41,6 @@ import socket
 import gevent
 from IPy import IP
 
-
-
 ###find all tag file in /root and /home on linux; in c:\tags and d:\tags on windows
 ###the tag file is *.tag
 
@@ -70,7 +68,7 @@ if len(sys.argv) > 1:
             scanip = sys.argv[2]
         else:
             scanip = get_host_ip()
-        print("scan ip: {0}".format(scanip))
+        print("[ INFO ] Scan IP Net: {0}".format(IP(scanip).make_net('255.255.255.0').strNormal(1)))
 else:
     module = 'auto'
 print('[ INFO ] Module is: {0}'.format(module))
@@ -146,8 +144,8 @@ def post_status(cmdb_domain, pingcmd, module):
     hostip = get_host_ip()
     statusapi = 'http://' + cmdb_domain + '/ft/status.php'
     print("[ INFO ] The Status API URL is: ", statusapi)
-    pingres = subprocess.Popen(pingcmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    if pingres.wait() == 0:
+    pingstatus, pingresult = subprocess.getstatusoutput(pingcmd)
+    if pingstatus == 0:
         print("[ INFO ] Ping Server {0} From Agent {1} is successful !!! ".format(cmdb_domain.split(':')[0], hostip))
         vatsping = 1
     else:
@@ -212,13 +210,13 @@ def post_status(cmdb_domain, pingcmd, module):
 
 def doinventory(cmd):
     print("[ INFO ] run in shell cmd: ", cmd)
-    res = subprocess.Popen(cmd, shell=True, stderr=subprocess.PIPE, stdout=subprocess.PIPE)
-    if res.wait() == 0:
-        if res.stdout.readlines():
-            print(res.stdout.readlines())
+    cmdstatus, cmdresult = subprocess.getstatusoutput(cmd)
+    if cmdstatus == 0:
+        print(cmdresult)
         return True
     else:
         return False
+        print(cmdresult)
         # print("[ INFO ] This is command stdout -------------[start]-------------------")
         # for stdinfo in res.stdout.readlines():
         #     print(stdinfo)
@@ -227,13 +225,12 @@ def doinventory(cmd):
 '''ping_scan'''
 def pingscan(ip):
     if ostype == 'win32':
-        pingcmd = 'ping -n 2 {0}'.format(ip)
+        pingcmd = 'ping -n 2 -w 2 {0}'.format(ip)
     else:
-        pingcmd = 'ping -c 2 {0}'.format(ip)
+        pingcmd = 'ping -c 2 -w 2 {0}'.format(ip)
     try:
-        fnull = open(os.devnull, 'w')
-        pingres = subprocess.Popen(pingcmd, shell=True, stdout=fnull, stderr=fnull)
-        if pingres.wait(timeout=2) == 0:
+        pingstatus, pingresult = subprocess.getstatusoutput(pingcmd)
+        if pingstatus == 0:
             print('[ INFO ] Host {0} is UP .'.format(ip))
             return ip
         else:
@@ -241,9 +238,6 @@ def pingscan(ip):
             return False
     except Exception as e:
         return False
-    finally:
-        fnull.close()
-
 
 def netscan(netip):
     print("*" * 10 + "NetScan Start" + "*" * 10)
@@ -304,6 +298,7 @@ if ostype in unix:
         sys.exit(8001)
 
     pingcmd = 'ping -c 3 ' + cmdb_ip
+    statusapi = 'http://' + cmdb_domain + '/ft/status.php'
     result = post_status(cmdb_domain, pingcmd, module)
     if result:
         if module == 'status':
@@ -311,8 +306,7 @@ if ostype in unix:
             pass
         elif module == 'netscan':
             scandata = netscan(scanip)
-            psturl = 'http://' + cmdb_domain + '/ft/status.php'
-            pstdata = do_post(url=psturl, data=scandata)
+            pstdata = do_post(url=statusapi, data=scandata)
             if pstdata:
                 print('[ INFO ] post net scan data success !')
             else:
@@ -359,6 +353,7 @@ else:
     finally:
         winreg.CloseKey(reg_keys)
     pingcmd = 'ping -n 3 -w 5 {0}'.format(cmdb_ip)
+    statusapi = 'http://' + cmdb_domain + '/ft/status.php'
     result = post_status(cmdb_domain, pingcmd, module)
     if result and module in ['manual', 'auto']:
         tag_info = gettags(path)
@@ -374,13 +369,23 @@ else:
         cmd = '"c:\\Program Files\\FusionInventory-Agent\\fusioninventory-agent.bat" '
         result = doinventory(cmd)
         if result:
+            inventory = 1
             print("[ INFO ] FusionInventory run success! ")
         else:
+            inventory = 0
             print("[ ERR ] FusionInventory run Failed !!! ")
+        data = {}
+        data["action"] = 'runinventory'
+        data["result"] = inventory
+        data["id"] = get_host_ip()
+        pstd = do_post(url=statusapi, data=data)
+        if pstd:
+            print('[ INFO ] post inventory data success !')
+        else:
+            print("[ ERR ] post inventory data Failed !!! ")
     elif result and module == 'netscan':
         scandata = netscan(scanip)
-        psturl = 'http://' + cmdb_domain + '/ft/status.php'
-        pstdata = do_post(url=psturl, data=scandata)
+        pstdata = do_post(url=statusapi, data=scandata)
         if pstdata:
             print('[ INFO ] post net scan data success !')
         else:
