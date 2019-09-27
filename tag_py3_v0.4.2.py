@@ -40,6 +40,7 @@ import requests
 import socket
 import gevent
 from IPy import IP
+import locale
 
 ###find all tag file in /root and /home on linux; in c:\tags and d:\tags on windows
 ###the tag file is *.tag
@@ -56,6 +57,19 @@ def get_host_ip():
         print("[ INFO ] Local IP: ", ip)
     return ip
 
+# get remote ip via /ft/status.php use HTTP mothod GET
+
+def get_remote_ip(url):
+    try:
+        req = requests.get(url=url, headers={"User-Agent": "python-Fusioninventory"}, timeout=5)
+        ctx = req.json()
+        # print("[ DEBUG ] ctx is {0}".format(ctx))
+        statuscode = req.status_code
+        if statuscode == 200 and ctx["action"] == 'remoteaddress':
+            return ctx["value"]
+    except Exception as e:
+        print("[ ERR ] {0}, GET status From {1} Failed, Please check server address !!!".format(e, statusapi))
+        return False
 
 if len(sys.argv) > 1:
     if sys.argv[1] == 'manual':
@@ -96,8 +110,9 @@ def gettags(paths):
     labels = []
     for tagfile in paths:
         config = configparser.ConfigParser()
+        defaultencoding = locale.getpreferredencoding(False)
         try:
-            config.read(tagfile, encoding='gbk')
+            config.read(tagfile, encoding=defaultencoding)
             # print('gbk read')
         except:
             config.read(tagfile, encoding='utf-8')
@@ -131,7 +146,7 @@ def post_status(cmdb_domain, pingcmd, module):
     '''
     # post data
         {
-            'id': ip,
+            'remoetip': ip,
             'module': 'manual|auto',
             'nettype': 'nat|direct',
             'result':
@@ -154,32 +169,31 @@ def post_status(cmdb_domain, pingcmd, module):
         return False
 
     if vatsping:
-        try:
-            req = requests.get(url=statusapi, headers={"User-Agent": "python-Fusioninventory"}, timeout=5)
-            ctx = req.json()
-            print("[ DEBUG ] ctx is {0}".format(ctx))
-            statuscode = req.status_code
-        except Exception as e:
-            print("[ ERR ] {0}, GET status From {1} Failed, Please check server address !!!".format(e, statusapi))
-            return False
-        # finally:
-        #     req.close()
+        # try:
+        #     req = requests.get(url=statusapi, headers={"User-Agent": "python-Fusioninventory"}, timeout=5)
+        #     ctx = req.json()
+        #     print("[ DEBUG ] ctx is {0}".format(ctx))
+        #     statuscode = req.status_code
+        # except Exception as e:
+        #     print("[ ERR ] {0}, GET status From {1} Failed, Please check server address !!!".format(e, statusapi))
+        #     return False
+        # # finally:
+        # #     req.close()
         '''
         response data : {"action": "remoteaddress", "value": "192.168.146.1"}
         '''
-        if statuscode == 200:
-            print("[ INFO ] connect status api {0} is successfull ! ".format(statusapi))
+        remoetip = get_remote_ip(statusapi)
+        if remoetip:
             vats10080 = 1
-            if ctx["action"] == 'remoteaddress':
-                remoetip = ctx["value"]
-                hostip = get_host_ip()
+            hostip = get_host_ip()
             if remoetip == hostip:
                 nettype = "direct"
             else:
                 nettype = "nat"
 
             data = {}
-            data["id"] = hostip
+            data["remoetip"] = remoetip
+            data["localip"] = hostip
             data["module"] = module
             data["nettype"] = nettype
             result = []
@@ -194,14 +208,12 @@ def post_status(cmdb_domain, pingcmd, module):
             data["result"] = result
             print("[ INFO ] POST DATA: ", data)
 
-            postreq = requests.post(url=statusapi, data=json.dumps(data),
-                                    headers={"User-Agent": "python-Fusioninventory"}, timeout=5)
-            if postreq.status_code == 200:
+            # postreq = requests.post(url=statusapi, data=json.dumps(data),
+            #                         headers={"User-Agent": "python-Fusioninventory"}, timeout=5)
+            postreq = do_post(url=statusapi, data=data)
+            if postreq:
                 print("[ INFO ] POST status data successfull! ")
                 return True
-            else:
-                print("[ ERR ] the URL: {0} is cannot connect !!! ".format(statusapi))
-                return False
 
         else:
             vats10080 = 0
@@ -211,12 +223,13 @@ def post_status(cmdb_domain, pingcmd, module):
 def doinventory(cmd):
     print("[ INFO ] run in shell cmd: ", cmd)
     cmdstatus, cmdresult = subprocess.getstatusoutput(cmd)
-    if cmdstatus == 0:
-        print(cmdresult)
-        return True
+    if cmdstatus == 0 and '':
+        print("[ INFO ] run inventory seccuss, {0}".format(cmdresult))
+        return True, cmdresult
     else:
-        return False
-        print(cmdresult)
+        print("[ ERR ] run inventory failed, {0}".format(cmdresult))
+        return False, cmdresult
+
         # print("[ INFO ] This is command stdout -------------[start]-------------------")
         # for stdinfo in res.stdout.readlines():
         #     print(stdinfo)
@@ -298,7 +311,7 @@ if ostype in unix:
         print("[ ERR ] {0}, please check agent.cfg file !!!".format(e))
         sys.exit(8001)
 
-    pingcmd = 'ping -c 3 ' + cmdb_ip
+    pingcmd = 'ping -c 2  ' + cmdb_ip
     statusapi = 'http://' + cmdb_domain + '/ft/status.php'
     result = post_status(cmdb_domain, pingcmd, module)
     if result:
@@ -317,6 +330,10 @@ if ostype in unix:
 
             tag_info = gettags(path)
 
+            # modify value of tag key in agent.cfg
+            sedCmd = "sed -i 's#^tag=.*#tag={0}#g' {1}".format(tag_info, fusionagentcfg)
+            subprocess.Popen(sedCmd, shell=True)
+
             with open(fusionagent_start_shell, 'r') as f:
                 for line in f.readlines():
                     line = line.strip().split('\n')[0]
@@ -331,23 +348,24 @@ if ostype in unix:
             # print("[ INFO ] set perl env command is :", perlenv)
             # print("[ INFO ] Fusion agent run command is :", fusion_cmd)
             cmd = perlenv + ';' + fusion_cmd + ' ' + "'" + str(tag_info) + "'"
-            result = doinventory(cmd)
+            result, resultinfo = doinventory(cmd)
             if result:
                 inventory = 1
                 print("[ INFO ] FusionInventory run success! ")
             else:
                 inventory = 0
-                print("[ ERR ] FusionInventory run Failed !!! ")
+                print("[ ERR ] {0}, FusionInventory run Failed !!! ".format(resultinfo))
             data = {}
             data["action"] = 'runinventory'
             data["result"] = inventory
-            data["id"] = get_host_ip()
+            data["localip"] = get_host_ip()
+            data["remoetip"] = get_remote_ip(statusapi)
+            data["resultinfo"] = resultinfo
             pstd = do_post(url=statusapi, data=data)
             if pstd:
                 print('[ INFO ] post inventory data success !')
             else:
                 print("[ ERR ] post inventory data Failed !!! ")
-
 
 else:
     path = ['c:\\tags', 'd:\\tags']
@@ -361,6 +379,7 @@ else:
 
     except Exception as e:
         print("[ ERR ] {0}, please check Fusioninventory installed !!!".format(e))
+
         sys.exit(8002)
 
     finally:
@@ -374,23 +393,29 @@ else:
         '''
         # modeify the win registry value ,the key name is 'HKEY_LOCAL_MACHINE\SOFTWARE\FusionInventory-Agent\\tag'
         '''
-        reg_conn = winreg.ConnectRegistry(None, winreg.HKEY_LOCAL_MACHINE)
-        reg_keys = winreg.OpenKey(reg_conn, r"SOFTWARE\FusionInventory-Agent", 0, winreg.KEY_SET_VALUE)
-        winreg.SetValueEx(reg_keys, "tag", 0, winreg.REG_SZ, tag_info)
-        winreg.CloseKey(reg_keys)
+        try:
+            reg_conn = winreg.ConnectRegistry(None, winreg.HKEY_LOCAL_MACHINE)
+            reg_keys = winreg.OpenKey(reg_conn, r"SOFTWARE\FusionInventory-Agent", 0, winreg.KEY_SET_VALUE)
+            winreg.SetValueEx(reg_keys, "tag", 0, winreg.REG_SZ, tag_info)
+            winreg.CloseKey(reg_keys)
+        except Exception as e:
+            print("[ ERR ] {0}, Modify Regedit tag value Failed !!! ".format(e))
 
         cmd = '"c:\\Program Files\\FusionInventory-Agent\\fusioninventory-agent.bat" '
-        result = doinventory(cmd)
+        result, resultinfo = doinventory(cmd)
+        remoteip = get_remote_ip(statusapi)
         if result:
             inventory = 1
             print("[ INFO ] FusionInventory run success! ")
         else:
             inventory = 0
-            print("[ ERR ] FusionInventory run Failed !!! ")
+            print("[ ERR ] {0}, FusionInventory run Failed !!! ".format(resultinfo))
         data = {}
         data["action"] = 'runinventory'
         data["result"] = inventory
-        data["id"] = get_host_ip()
+        data["localip"] = get_host_ip()
+        data["remoteip"] = remoteip
+        data["resultinfo"] = resultinfo
         pstd = do_post(url=statusapi, data=data)
         if pstd:
             print('[ INFO ] post inventory data success !')
