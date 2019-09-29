@@ -2,11 +2,6 @@
 # -*- coding:utf-8 -*-
 # auth: zhoujunke
 # date: 20190212
-
-# command: trigger, update 
-#       trigger: all host start hw info collect and post the data to API server
-#       update:  all host update the script on host
-
 # crypto : data(base64) ^ data(md5) + data(md5)
 # data = command + '|' + updateurl + '|' + filepath + '|' + nowtime 
 
@@ -22,6 +17,7 @@ def cprint(data):
     print(cdata)
 
 nowtime = time.time()
+print("[ INFO ] now time is: {0}".format(nowtime))
 data = sys.stdin.readline()
 try:
     data = cryptolib.decryptdata(data.split('\n')[0])

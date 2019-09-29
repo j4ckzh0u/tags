@@ -41,8 +41,7 @@ def xor_decrypt(secret, key):
 ### get data md5 hexdigest
 def md5(data):
     m = hashlib.md5()
-    data = data.encode(encoding='utf-8')
-    m.update(data)
+    m.update(data.encode("utf-8"))
     md5digest = m.hexdigest()
     return md5digest
 

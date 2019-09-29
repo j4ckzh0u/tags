@@ -146,7 +146,8 @@ def post_status(cmdb_domain, pingcmd, module):
     '''
     # post data
         {
-            'remoetip': ip,
+            'remoteip': ip,
+            'action': 'status',
             'module': 'manual|auto',
             'nettype': 'nat|direct',
             'result':
@@ -182,17 +183,18 @@ def post_status(cmdb_domain, pingcmd, module):
         '''
         response data : {"action": "remoteaddress", "value": "192.168.146.1"}
         '''
-        remoetip = get_remote_ip(statusapi)
-        if remoetip:
+        remoteip = get_remote_ip(statusapi)
+        if remoteip:
             vats10080 = 1
             hostip = get_host_ip()
-            if remoetip == hostip:
+            if remoteip == hostip:
                 nettype = "direct"
             else:
                 nettype = "nat"
 
             data = {}
-            data["remoetip"] = remoetip
+            data["action"] = 'status'
+            data["remoteip"] = remoteip
             data["localip"] = hostip
             data["module"] = module
             data["nettype"] = nettype
@@ -223,7 +225,7 @@ def post_status(cmdb_domain, pingcmd, module):
 def doinventory(cmd):
     print("[ INFO ] run in shell cmd: ", cmd)
     cmdstatus, cmdresult = subprocess.getstatusoutput(cmd)
-    if cmdstatus == 0 and '':
+    if cmdstatus == 0:
         print("[ INFO ] run inventory seccuss, {0}".format(cmdresult))
         return True, cmdresult
     else:
@@ -311,7 +313,7 @@ if ostype in unix:
         print("[ ERR ] {0}, please check agent.cfg file !!!".format(e))
         sys.exit(8001)
 
-    pingcmd = 'ping -c 2  ' + cmdb_ip
+    pingcmd = 'ping -c 2 -w 2 ' + cmdb_ip
     statusapi = 'http://' + cmdb_domain + '/ft/status.php'
     result = post_status(cmdb_domain, pingcmd, module)
     if result:
@@ -359,8 +361,9 @@ if ostype in unix:
             data["action"] = 'runinventory'
             data["result"] = inventory
             data["localip"] = get_host_ip()
-            data["remoetip"] = get_remote_ip(statusapi)
+            data["remoteip"] = get_remote_ip(statusapi)
             data["resultinfo"] = resultinfo
+            print('[ INFO ] Runinventory status data: {0}'.format(data))
             pstd = do_post(url=statusapi, data=data)
             if pstd:
                 print('[ INFO ] post inventory data success !')
@@ -384,7 +387,7 @@ else:
 
     finally:
         winreg.CloseKey(reg_keys)
-    pingcmd = 'ping -n 3 -w 5 {0}'.format(cmdb_ip)
+    pingcmd = 'ping -n 2 -w 3 {0}'.format(cmdb_ip)
     statusapi = 'http://' + cmdb_domain + '/ft/status.php'
     result = post_status(cmdb_domain, pingcmd, module)
     if result and module in ['manual', 'auto']:
@@ -416,6 +419,7 @@ else:
         data["localip"] = get_host_ip()
         data["remoteip"] = remoteip
         data["resultinfo"] = resultinfo
+        print('[ INFO ] Runinventory status data: {0}'.format(data))
         pstd = do_post(url=statusapi, data=data)
         if pstd:
             print('[ INFO ] post inventory data success !')
