@@ -46,11 +46,15 @@ def send_data(host, port, data, localip):
     # s.send(cmd.encode(encoding='utf8'))
     s.send(bytes(cmd, 'utf8'))
     recvdata = s.recv(1024).decode(encoding='utf-8')
-    print(recvdata)
+    print("[info] recvdata: ", recvdata)
     s.close()
+
+def check_status(host):
+    pass
 
 if __name__ == '__main__':
     # send_data('192.168.146.180', 62354, 'inventory|manual|||', '192.168.146.180')
     # send_data('192.168.146.180', 62354, 'netscan|192.168.43.1|||', '192.168.146.180')
-    send_data('192.168.146.180', 62354, 'status||||', '192.168.146.180')
+    # send_data('192.168.146.180', 62354, 'status||||', '192.168.146.180')
+    send_data('192.168.88.190', 62354, 'checksta62354||||', '192.168.88.190')
     #send_data('192.168.146.180', 62354, 'update|http://192.168.146.180:8000/q1.txt|/tmp/a11.txt|root|444', '127.255.255.254')

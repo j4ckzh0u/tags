@@ -11,8 +11,9 @@ import requests
 import sys
 import socket
 import os
+import json
 
-currpath = os.getcwd()
+currpath = '/opt/FusionInventory-Agent/tags'
 inventory_tag = currpath + '/inventory_tag'
 
 def cdata(data):
@@ -51,8 +52,9 @@ readdata = sys.stdin.readline()
 #data = input('Please input data: ')
 command, args1, args2, args3, args4 ,authip = csplitdata(data=readdata)
 print(command, args1, args2, args3, args4 ,authip)
+localip = get_host_ip()
 
-if authip == get_host_ip() or authip == '127.255.255.254':
+if authip == localip or authip == '127.255.255.254':
     if command == 'inventory':
         cmd = "{0} {1}".format(inventory_tag, args1)
         print('[ EXEC ] inventory: {0}'.format(cmd))
@@ -96,6 +98,12 @@ if authip == get_host_ip() or authip == '127.255.255.254':
             print('*' * 10 + '[ EXEC ] status success' + '*' * 10)
         else:
             print('[ ERR ], {0}'.format(cmdresult))
+    elif command == 'checksta62354':
+        data = dict()
+        data["action"] = 'sta62354'
+        data["result"] = 1
+        data = json.dumps(data)
+        print(data)
     else:
         print('[ ERR ] unkonw what to do!')
 else:
