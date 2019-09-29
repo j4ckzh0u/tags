@@ -2,54 +2,102 @@
 # -*- coding:utf-8 -*-
 # auth: zhoujunke
 # date: 20190212
+
 # crypto : data(base64) ^ data(md5) + data(md5)
-# data = command + '|' + updateurl + '|' + filepath + '|' + nowtime 
 
 import cryptolib
-import time
 import subprocess
 import requests
 import sys
+import socket
+import os
 
-#data = raw_input()
-def cprint(data):
+currpath = os.getcwd()
+inventory_tag = currpath + '/inventory_tag'
+
+def cdata(data):
     cdata = cryptolib.encryptdata(data)
-    print(cdata)
+    return cdata
+    #print(cdata)
 
-nowtime = time.time()
-print("[ INFO ] now time is: {0}".format(nowtime))
-data = sys.stdin.readline()
-try:
-    data = cryptolib.decryptdata(data.split('\n')[0])
-    print("[ DEBUG ] get DATA: " + data)
-    datalist = data.split('|')
-    command = datalist[0]
-    updateurl = datalist[1]
-    filepath = datalist[2]
-    ctime = datalist[3]
-    print(command)
-except:
-    print('data is error!!!')
-    sys.exit()
+def csplitdata(data):
+    try:
+        data = cryptolib.decryptdata(data.split('\n')[0])
+        # print("[ DEBUG ] get DATA: " + data)
+        datalist = data.split('|')
+        command = datalist[0]
+        args1 = datalist[1]
+        args2 = datalist[2]
+        args3 = datalist[3]
+        args4 = datalist[4]
+        authip = datalist[5]
+        return command, args1, args2, args3, args4 ,authip
+    except:
+        print('data is error!!!')
+        sys.exit()
 
-if command == 'gettime':
-    cprint({'nowtime': nowtime})
+def get_host_ip():
+    try:
+        sc = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sc.connect(('10.0.0.1', 8008))
 
-elif ctime == nowtime:
+    finally:
+        ip = sc.getsockname()[0]
+        sc.close()
+        print("[ INFO ] Local IP: ", ip)
+    return ip
+
+readdata = sys.stdin.readline()
+#data = input('Please input data: ')
+command, args1, args2, args3, args4 ,authip = csplitdata(data=readdata)
+print(command, args1, args2, args3, args4 ,authip)
+
+if authip == get_host_ip() or authip == '127.255.255.254':
     if command == 'inventory':
-        res = subprocess.Popen("python /root/py_code/salt_get_hwinfo_not_to_db.py", shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        if res.wait() == 0:
-            print(res.stdout.read().split('\n')[0])
+        cmd = "{0} {1}".format(inventory_tag, args1)
+        print('[ EXEC ] inventory: {0}'.format(cmd))
+        cmdstatus, cmdresult = subprocess.getstatusoutput(cmd)
+        if cmdstatus == 0:
+            print('*' * 10 + '[ EXEC ] inventory success' + '*' * 10)
         else:
-            print('command exec fail!!!')
+            print('[ ERR ], {0}'.format(cmdresult))
     elif command == 'update':
-        d = requests.get(updateurl)
+        d = requests.get(args1)
         try:
-            if d.code == 200:
-                data = d.read()
-                with open(filepath, 'wb') as f:
-                    f.write(data)
-            print('script update success')
+            if d.status_code == 200:
+                with open(args2, 'wb') as f:
+                    for data in d.iter_content(100000):
+                        f.write(data)
+                print('[ EXEC ] update success')
+                cmd = 'chown {0}:{0} {1}; chmod {2} {1}'.format(args3, args2, args4)
+                cmdstatus, cmdresult = subprocess.getstatusoutput(cmd)
+                if cmdstatus == 0:
+                    print('*' * 10 + '[ EXEC ] chown && chmod success' + '*' * 10)
+                else:
+                    print('[ ERR ], {0}'.format(cmdresult))
+            else:
+                print('[ ERR ] update Faild,file url error')
         except:
             print('url error')
             sys.exit()
+    elif command == 'netscan':
+        cmd = "{0} netscan {1}".format(inventory_tag, args1)
+        print('[ EXEC ] netscan: {0}'.format(cmd))
+        cmdstatus, cmdresult = subprocess.getstatusoutput(cmd)
+        if cmdstatus == 0:
+            print('*' * 10 + '[ EXEC ] netscan success' + '*' * 10)
+        else:
+            print('[ ERR ], {0}'.format(cmdresult))
+
+    elif command == 'status':
+        print('[ EXEC ] status: {0} status'.format(inventory_tag))
+        cmdstatus, cmdresult = subprocess.getstatusoutput("{0} status".format(inventory_tag))
+        if cmdstatus == 0:
+            print('*' * 10 + '[ EXEC ] status success' + '*' * 10)
+        else:
+            print('[ ERR ], {0}'.format(cmdresult))
+    else:
+        print('[ ERR ] unkonw what to do!')
+else:
+    print('[ ERR ] auth error!')
+    sys.exit()

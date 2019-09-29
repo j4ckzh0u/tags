@@ -333,7 +333,7 @@ if ostype in unix:
             tag_info = gettags(path)
 
             # modify value of tag key in agent.cfg
-            sedCmd = "sed -i 's#^tag=.*#tag={0}#g' {1}".format(tag_info, fusionagentcfg)
+            sedCmd = "sed -i 's#^tag.*#tag={0}#g' {1}".format(tag_info, fusionagentcfg)
             subprocess.Popen(sedCmd, shell=True)
 
             with open(fusionagent_start_shell, 'r') as f:
