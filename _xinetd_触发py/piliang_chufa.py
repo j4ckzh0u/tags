@@ -41,12 +41,18 @@ def send_data(host, port, data, localip):
     s.connect((host, port))
 
     cmd = data + '|' + str(localip)
-    print('t3: ', cmd)
+    # print('t3: ', cmd)
     cmd = cdata(cmd) + '\n'
     # s.send(cmd.encode(encoding='utf8'))
     s.send(bytes(cmd, 'utf8'))
     recvdata = s.recv(1024).decode(encoding='utf-8')
     print("[info] recvdata: ", recvdata)
+    try:
+        jdata = json.loads(recvdata)
+        print(jdata["action"])
+        print(jdata["result"])
+    except Exception as e:
+        print('data not json')
     s.close()
 
 def check_status(host):

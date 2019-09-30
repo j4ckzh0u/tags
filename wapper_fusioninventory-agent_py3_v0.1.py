@@ -103,7 +103,7 @@ if authip == localip or authip == '127.255.255.254':
         data["action"] = 'sta62354'
         data["result"] = 1
         data = json.dumps(data)
-        print(data)
+        sys.stdout.write(data)
     else:
         print('[ ERR ] unkonw what to do!')
 else:
