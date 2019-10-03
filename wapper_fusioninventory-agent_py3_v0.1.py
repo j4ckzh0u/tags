@@ -51,7 +51,7 @@ def get_host_ip():
 nowtime = str(time.time())
 tdate = {}
 tdate["nowtime"] = nowtime
-
+# first print, second flush, then it will print out.
 print(cdata(json.dumps(tdate)))
 sys.stdout.flush()
 
@@ -59,6 +59,7 @@ readdata = sys.stdin.readline()
 #data = input('Please input data: ')
 command, args1, args2, args3, args4, authip, authtime = csplitdata(data=readdata)
 # print(command, args1, args2, args3, args4, authip)
+
 localip = get_host_ip()
 
 if authtime == nowtime and (authip == localip or authip == '127.255.255.254'):
