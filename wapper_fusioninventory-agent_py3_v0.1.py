@@ -1,7 +1,7 @@
 #! /usr/bin/env python3
 # -*- coding:utf-8 -*-
 # auth: zhoujunke
-# date: 20190212
+# date: 20190910
 
 # crypto : data(base64) ^ data(md5) + data(md5)
 
