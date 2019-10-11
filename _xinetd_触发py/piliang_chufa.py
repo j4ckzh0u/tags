@@ -19,7 +19,7 @@ nowtime = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
 
 # time = get from server via 62354, use gettime command
 # data = inventory|auto(manual)|time
-# data = netscan|ip/''|time
+# data = netscan|ip/null|time
 # data = status||time
 # data = update|url|destpath|own(拥有者)|authmode(权限类型)|time
 #           0    1     2        3          4               5
@@ -88,5 +88,6 @@ command like this:
     # send_data('192.168.146.180', 62354, 'inventory|manual|||', '192.168.146.180')
     # send_data('192.168.146.180', 62354, 'netscan|192.168.3.1|||', '192.168.146.180')
     # send_data('192.168.146.180', 62354, 'status||||', '127.255.255.254')
+    send_data('192.168.88.190', 62354, 'status||||', '127.255.255.254')
     # send_data('192.168.146.180', 62354, 'checksta62354||||', '192.168.146.180')
     # send_data('192.168.146.180', 62354, 'update|http://192.168.146.180:8000/1.txt|/tmp/a11.txt|root|444 & mkdir -p /tmp/FFFFFFx', '127.255.255.254')
